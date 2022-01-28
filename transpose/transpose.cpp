@@ -9,7 +9,7 @@ namespace sycl=cl::sycl;
 timeval start, end;
 
 #define DTYPE float
-const size_t M=1024*10, N=1024*10;
+const size_t M=1024*30, N=1024*30;
 const size_t DIM_TILE=32;
 const size_t WORK_PER_ITEM=4;
 const size_t BLOCK_ROWS=DIM_TILE/WORK_PER_ITEM;
@@ -235,6 +235,40 @@ void transpose_coalesced_shared_memory(sycl::queue& queue, const DTYPE* device_i
 
 
 void transpose_no_bank_conflict(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out) {
+
+
+    queue.submit([&] (sycl::handler& cgh) {
+        sycl::accessor<DTYPE, 2, sycl::access::mode::read_write, sycl::access::target::local> local_in(sycl::range<2>(DIM_TILE+1,DIM_TILE), cgh);
+        cgh.parallel_for(sycl::nd_range<2>({M,(N/WORK_PER_ITEM)}, {DIM_TILE,BLOCK_ROWS}), [=](sycl::nd_item<2> item){
+
+            int y = item.get_global_id(1)*WORK_PER_ITEM;
+            int x = item.get_global_id(0);
+            int ly = item.get_local_id(1)*WORK_PER_ITEM;
+            int lx = item.get_local_id(0);
+
+
+            // Load input datain to local memory
+            for (int work=0; work<WORK_PER_ITEM; work++) {
+                local_in[ly+work][lx] = device_in[(y+work)*N+x];
+            }
+
+            // Synchronizing all the workitems in a group
+            item.barrier(sycl::access::fence_space::local_space);
+            
+            // Store input data into output
+            int x_start = ((int)(x/DIM_TILE))*DIM_TILE;
+            int y_start = ((int)(y/DIM_TILE))*DIM_TILE;
+            x = y_start + lx;
+            y = x_start + ly;
+
+            for (int work=0; work<WORK_PER_ITEM; work++) {
+                device_out[(y+work)*M+x] = local_in[lx][ly+work];
+            }
+
+
+        });
+    });
+
 
 
     queue.wait();
