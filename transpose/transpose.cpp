@@ -9,19 +9,21 @@ namespace sycl=cl::sycl;
 timeval start, end;
 
 #define DTYPE float
-const size_t M=10240, N=10240;
+const size_t M=1024*10, N=1024*10;
 const size_t DIM_TILE=32;
-const size_t WORK_PER_ITEM=1;
-const size_t BLOCK_ROWS=DIM_TILE/WORK_PER_ITEM; // work per item is 4 (=32/8)
+const size_t WORK_PER_ITEM=4;
+const size_t BLOCK_ROWS=DIM_TILE/WORK_PER_ITEM;
 
 
 // Debugging info
 #define __MODE_DEBUG_TIME__
-const size_t NUM_TESTS=4;
+const size_t NUM_TESTS=8;
 void check_result(const std::vector<DTYPE>&,const std::vector<DTYPE>&);
 
 // Kernels
-void naive_transpose(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out);
+void transpose_naive(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out);
+void transpose_coalesced_shared_memory(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out);
+void transpose_no_bank_conflict(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out);
 
 
 int main(void) {
@@ -55,10 +57,11 @@ int main(void) {
     /********************************************************
      *  Naive implementation
      ********************************************************/
+
     std::cout << "Naive implementation\n";
     gettimeofday(&start, NULL);
     for (int test=0; test<NUM_TESTS; test++){
-        naive_transpose(queue, device_in, device_out);
+        transpose_naive(queue, device_in, device_out);
     }   
     gettimeofday(&end, NULL);
     std::cout << "-- Elasped time : "<<ELAPSED_TIME(start, end)/NUM_TESTS<<" s\n";
@@ -74,10 +77,11 @@ int main(void) {
     /********************************************************
      *  Coalesced transpose via shared memory
      ********************************************************/
-    std::cout << "Naive implementation\n";
+
+    std::cout << "Coalesced transpose via shared memory\n";
     gettimeofday(&start, NULL);
     for (int test=0; test<NUM_TESTS; test++){
-        naive_transpose(queue, device_in, device_out);
+        transpose_coalesced_shared_memory(queue, device_in, device_out);
     }   
     gettimeofday(&end, NULL);
     std::cout << "-- Elasped time : "<<ELAPSED_TIME(start, end)/NUM_TESTS<<" s\n";
@@ -93,10 +97,11 @@ int main(void) {
     /********************************************************
      *  No shared memory bank conflicts
      ********************************************************/
-    std::cout << "Naive implementation\n";
+
+    std::cout << "No shared memory bank conflicts\n";
     gettimeofday(&start, NULL);
     for (int test=0; test<NUM_TESTS; test++){
-        //naive_transpose(queue, device_in, device_out);
+        transpose_no_bank_conflict(queue, device_in, device_out);
     }   
     gettimeofday(&end, NULL);
     std::cout << "-- Elasped time : "<<ELAPSED_TIME(start, end)/NUM_TESTS<<" s\n";
@@ -115,7 +120,7 @@ int main(void) {
     return 0;
 }
 
-void naive_transpose(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out) {
+void transpose_naive(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out) {
 
     queue.submit([&] (sycl::handler& cgh) {
         cgh.parallel_for(sycl::nd_range<1>(M*(N/WORK_PER_ITEM), DIM_TILE*BLOCK_ROWS), [=](sycl::nd_item<1> item){
@@ -133,16 +138,65 @@ void naive_transpose(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_o
     queue.wait();
 }
 
+void transpose_coalesced_shared_memory(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out) {
+
+    queue.submit([&] (sycl::handler& cgh) {
+        sycl::accessor<DTYPE, 2, sycl::access::mode::read_write, sycl::access::target::local> local_in(sycl::range<2>(DIM_TILE,DIM_TILE), cgh);
+        cgh.parallel_for(sycl::nd_range<2>({M,(N/WORK_PER_ITEM)}, {DIM_TILE,BLOCK_ROWS}), [=](sycl::nd_item<2> item){
+
+            int y = item.get_global_id(1)*WORK_PER_ITEM;///N
+            int x = item.get_global_id(0);//%N;
+            int ly = item.get_local_id(1)*WORK_PER_ITEM;///DIM_TILE
+            int lx = item.get_local_id(0);//%DIM_TILE;
+
+
+            // Load input datain to local memory
+            for (int work=0; work<WORK_PER_ITEM; work++) {
+                local_in[ly+work][lx] = device_in[(y+work)*N+x];
+            }
+
+            // Synchronizing all the workitems in a group
+            item.barrier(sycl::access::fence_space::local_space);
+            
+            // Store input data into output
+            int x_start = ((int)(x/DIM_TILE))*DIM_TILE;
+            int y_start = ((int)(y/DIM_TILE))*DIM_TILE;
+            x = y_start + lx;
+            y = x_start + ly;
+
+            for (int work=0; work<WORK_PER_ITEM; work++) {
+                device_out[(y+work)*M+x] = local_in[lx][ly+work];
+            }
+
+
+        });
+    });
+
+
+    queue.wait();
+
+}
+
+
+void transpose_no_bank_conflict(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out) {
+
+
+    queue.wait();
+
+}
+
+
 
 void check_result(const std::vector<DTYPE>& in, const std::vector<DTYPE>& out) {
 
     for (int y=0; y<M; y++) {
         for (int x=0; x<N; x++) {
             if (in[y*N+x] != out[x*M+y]) {
-                std::cout << "--- [[[ERROR]]] Checking the result failed!!\n";
+                std::cout << "--- [[[ERROR]]] Checking the result failed at ["<<x<<","<<y<<"] "<<out[x*M+y]<<" !!\n";
                 return ;
             }
         }
     }
+
     std::cout << "--- Checking the result succeed!!\n";
 }
