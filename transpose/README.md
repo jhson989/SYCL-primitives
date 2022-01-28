@@ -27,5 +27,9 @@ It contains 4 versions for the transpose operation:
     - Each workitem at [i,j] in local group [I,J] copys the value at global [i,j] into local [li,lj].
     - Same workitem copys the value at local [li,lj] into global [i',j'], where i' = li+d\*J, j' = lj+d\*I (d is the local group size)
 - Coalesced transpose via shared memory without shared memory bank conflict
+    - Parallel implementation for traspose via shared memory with coalsced global memory update 
+    - Each workitem at [i,j] in local group [I,J] copys the value at global [i,j] into local [li,lj].
+    - Same workitem copys the value at local [li,lj] into global [i',j'], where i' = li+d\*J, j' = lj+d\*I (d is the local group size)
+    - Local memory size is [d,d+1], so no bank conflict occurs for local memory
 ## 4. Reference
 [1] Mark Harris, An Efficient Matrix Transpose in CUDA C/C++, https://developer.nvidia.com/blog/efficient-matrix-transpose-cuda-cc/
