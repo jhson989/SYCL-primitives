@@ -199,7 +199,7 @@ void transpose_coalesced_shared_memory(sycl::queue& queue, const DTYPE* device_i
     queue.submit([&] (sycl::handler& cgh) {
         sycl::accessor<DTYPE, 2, sycl::access::mode::read_write, sycl::access::target::local> local_in(sycl::range<2>(DIM_TILE,DIM_TILE), cgh);
         cgh.parallel_for(sycl::nd_range<2>({M,(N/WORK_PER_ITEM)}, {DIM_TILE,BLOCK_ROWS}), [=](sycl::nd_item<2> item){
-
+            
             int y = item.get_global_id(1)*WORK_PER_ITEM;
             int x = item.get_global_id(0);
             int ly = item.get_local_id(1)*WORK_PER_ITEM;
@@ -215,8 +215,8 @@ void transpose_coalesced_shared_memory(sycl::queue& queue, const DTYPE* device_i
             item.barrier(sycl::access::fence_space::local_space);
             
             // Store input data into output
-            int x_start = ((int)(x/DIM_TILE))*DIM_TILE;
-            int y_start = ((int)(y/DIM_TILE))*DIM_TILE;
+            int x_start = (x/DIM_TILE)*DIM_TILE;
+            int y_start = (y/DIM_TILE)*DIM_TILE;
             x = y_start + lx;
             y = x_start + ly;
 
@@ -238,7 +238,7 @@ void transpose_no_bank_conflict(sycl::queue& queue, const DTYPE* device_in, DTYP
 
 
     queue.submit([&] (sycl::handler& cgh) {
-        sycl::accessor<DTYPE, 2, sycl::access::mode::read_write, sycl::access::target::local> local_in(sycl::range<2>(DIM_TILE+1,DIM_TILE), cgh);
+        sycl::accessor<DTYPE, 2, sycl::access::mode::read_write, sycl::access::target::local> local_in(sycl::range<2>(DIM_TILE,DIM_TILE+1), cgh);
         cgh.parallel_for(sycl::nd_range<2>({M,(N/WORK_PER_ITEM)}, {DIM_TILE,BLOCK_ROWS}), [=](sycl::nd_item<2> item){
 
             int y = item.get_global_id(1)*WORK_PER_ITEM;
@@ -256,8 +256,8 @@ void transpose_no_bank_conflict(sycl::queue& queue, const DTYPE* device_in, DTYP
             item.barrier(sycl::access::fence_space::local_space);
             
             // Store input data into output
-            int x_start = ((int)(x/DIM_TILE))*DIM_TILE;
-            int y_start = ((int)(y/DIM_TILE))*DIM_TILE;
+            int x_start = (x/DIM_TILE)*DIM_TILE;
+            int y_start = (y/DIM_TILE)*DIM_TILE;
             x = y_start + lx;
             y = x_start + ly;
 
