@@ -19,10 +19,13 @@ It contains 4 versions for the transpose operation:
     - Basic parallel implementation for traspose. 
     - Each workitem at [i,j] copys the value at [i,j] into [j,i].
 - Naive transpose via shared memory
-    - Basic parallel implementation for traspose via shared memory. 
+    - Parallel implementation for traspose via shared memory. 
     - Each workitem at [i,j] copys the value at global [i,j] into local [li,lj].
-    - Each workitem at [i,j] copys the value at local [li,lj] into local [j,i].
+    - Same workitem copys the value at local [li,lj] into global [j,i].
 - Coalesced transpose via shared memory
+    - Parallel implementation for traspose via shared memory with coalsced global memory update 
+    - Each workitem at [i,j] in local group [I,J] copys the value at global [i,j] into local [li,lj].
+    - Same workitem copys the value at local [li,lj] into global [i',j'], where i' = li+dI, j' = lj+dJ (d is local group size)
 - Coalesced transpose via shared memory without shared memory bank conflict
 ## 4. Reference
 [1] Mark Harris, An Efficient Matrix Transpose in CUDA C/C++, https://developer.nvidia.com/blog/efficient-matrix-transpose-cuda-cc/
