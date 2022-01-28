@@ -16,12 +16,13 @@ const size_t BLOCK_ROWS=DIM_TILE/WORK_PER_ITEM;
 
 
 // Debugging info
-#define __MODE_DEBUG_TIME__
-const size_t NUM_TESTS=8;
+//#define __MODE_DEBUG_TIME__
+const size_t NUM_TESTS=20;
 void check_result(const std::vector<DTYPE>&,const std::vector<DTYPE>&);
 
 // Kernels
 void transpose_naive(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out);
+void transpose_shared_memory(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out);
 void transpose_coalesced_shared_memory(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out);
 void transpose_no_bank_conflict(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out);
 
@@ -32,7 +33,7 @@ int main(void) {
     std::cout << "SYCL Primitives : Parallel Traspose\n";
     std::cout << "-- a single nvidia GPU example\n";
     std::cout << "-- 2D matrix transpose opertaion : in["<<M<<","<<N<<"] -> "<<"out["<<N<<","<<M<<"]\n";
-    std::cout << "-- 2D matrix size: "<<sizeof(DTYPE)*M*N/1024.0/1024.0/1024.0<<" GB\n";
+    std::cout << "-- 2D matrix size: "<<2*sizeof(DTYPE)*M*N/1024.0/1024.0/1024.0<<" GB\n";
     std::cout << "=================================================\n\n";
 
     /********************************************************
@@ -58,7 +59,7 @@ int main(void) {
      *  Naive implementation
      ********************************************************/
 
-    std::cout << "Naive implementation\n";
+    std::cout << "\nNaive implementation\n";
     gettimeofday(&start, NULL);
     for (int test=0; test<NUM_TESTS; test++){
         transpose_naive(queue, device_in, device_out);
@@ -75,10 +76,31 @@ int main(void) {
 
 
     /********************************************************
+     *  Naive transpose via shared memory
+     ********************************************************/
+
+    std::cout << "\nNaive transpose via shared memory\n";
+    gettimeofday(&start, NULL);
+    for (int test=0; test<NUM_TESTS; test++){
+        transpose_shared_memory(queue, device_in, device_out);
+    }   
+    gettimeofday(&end, NULL);
+    std::cout << "-- Elasped time : "<<ELAPSED_TIME(start, end)/NUM_TESTS<<" s\n";
+    std::cout << "-- Effective bandwidth : "<<sizeof(DTYPE)*M*N/1024.0/1024.0/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" GB/s\n";
+
+    #ifdef __MODE_DEBUG_TIME__
+    queue.memcpy(out.data(), device_out, M*N*sizeof(DTYPE));
+    queue.wait();
+    check_result(in, out);
+    #endif
+
+
+
+    /********************************************************
      *  Coalesced transpose via shared memory
      ********************************************************/
 
-    std::cout << "Coalesced transpose via shared memory\n";
+    std::cout << "\nCoalesced transpose via shared memory\n";
     gettimeofday(&start, NULL);
     for (int test=0; test<NUM_TESTS; test++){
         transpose_coalesced_shared_memory(queue, device_in, device_out);
@@ -98,7 +120,7 @@ int main(void) {
      *  No shared memory bank conflicts
      ********************************************************/
 
-    std::cout << "No shared memory bank conflicts\n";
+    std::cout << "\nNo shared memory bank conflicts\n";
     gettimeofday(&start, NULL);
     for (int test=0; test<NUM_TESTS; test++){
         transpose_no_bank_conflict(queue, device_in, device_out);
@@ -138,16 +160,50 @@ void transpose_naive(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_o
     queue.wait();
 }
 
+void transpose_shared_memory(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out) {
+
+    queue.submit([&] (sycl::handler& cgh) {
+        sycl::accessor<DTYPE, 2, sycl::access::mode::read_write, sycl::access::target::local> local_in(sycl::range<2>(DIM_TILE,DIM_TILE), cgh);
+        cgh.parallel_for(sycl::nd_range<2>({M,(N/WORK_PER_ITEM)}, {DIM_TILE,BLOCK_ROWS}), [=](sycl::nd_item<2> item){
+
+            int y = item.get_global_id(1)*WORK_PER_ITEM;
+            int x = item.get_global_id(0);
+            int ly = item.get_local_id(1)*WORK_PER_ITEM;
+            int lx = item.get_local_id(0);
+
+
+            // Load input datain to local memory
+            for (int work=0; work<WORK_PER_ITEM; work++) {
+                local_in[ly+work][lx] = device_in[(y+work)*N+x];
+            }
+
+            // Synchronizing all the workitems in a group
+            item.barrier(sycl::access::fence_space::local_space);
+
+            for (int work=0; work<WORK_PER_ITEM; work++) {
+                device_out[x*M+(y+work)] = local_in[ly+work][lx];
+            }
+
+
+        });
+    });
+
+
+    queue.wait();
+
+}
+
+
 void transpose_coalesced_shared_memory(sycl::queue& queue, const DTYPE* device_in, DTYPE* device_out) {
 
     queue.submit([&] (sycl::handler& cgh) {
         sycl::accessor<DTYPE, 2, sycl::access::mode::read_write, sycl::access::target::local> local_in(sycl::range<2>(DIM_TILE,DIM_TILE), cgh);
         cgh.parallel_for(sycl::nd_range<2>({M,(N/WORK_PER_ITEM)}, {DIM_TILE,BLOCK_ROWS}), [=](sycl::nd_item<2> item){
 
-            int y = item.get_global_id(1)*WORK_PER_ITEM;///N
-            int x = item.get_global_id(0);//%N;
-            int ly = item.get_local_id(1)*WORK_PER_ITEM;///DIM_TILE
-            int lx = item.get_local_id(0);//%DIM_TILE;
+            int y = item.get_global_id(1)*WORK_PER_ITEM;
+            int x = item.get_global_id(0);
+            int ly = item.get_local_id(1)*WORK_PER_ITEM;
+            int lx = item.get_local_id(0);
 
 
             // Load input datain to local memory
