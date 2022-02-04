@@ -16,7 +16,6 @@ class MapFuncWorkIntensive {
                 device_out[x+i*size] = map(device_in[x+i*size]);
         }
         
-        static const int OPS_PER_ITEM = 1;
 
     private:
         DTYPE* device_in;

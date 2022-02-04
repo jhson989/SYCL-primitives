@@ -12,16 +12,21 @@ timeval start, end;
 /*** Data configuration ***/
 #define DTYPE float
 constexpr size_t NUM_DATA = 1<<29;
-#define WORK_PER_ITEM 32
+#define WORK_PER_ITEM 8
 
 /*** Debugging info ***/
 #define __MODE_DEBUG_TIME__
 const size_t NUM_TESTS=20;
 void check_result(const std::vector<DTYPE>&,const std::vector<DTYPE>&);
 
+
+
+/*** Map function ***/
 inline DTYPE map(const DTYPE in) {
     return in-1;
 }
+const int OPS_PER_ITEM = 1;
+
 
 /*** Map inplementation ***/
 #include "includes/map_naive.hpp"
@@ -61,6 +66,11 @@ int main(void) {
     std::vector<DTYPE> out(NUM_DATA);
     DTYPE* device_out = sycl::malloc_device<DTYPE>(NUM_DATA, queue);
 
+    // For initial warming up
+    map_naive(queue, device_in, device_out); 
+    map_work_intensive(queue, device_in, device_out);
+    map_work_intensive_unrolled(queue, device_in, device_out);
+
 
     /********************************************************
      *  Naive implementation
@@ -73,7 +83,7 @@ int main(void) {
     gettimeofday(&end, NULL);
     std::cout << "-- Elasped time : "<<ELAPSED_TIME(start, end)/NUM_TESTS<<" s\n";
     std::cout << "-- Effective bandwidth : "<<sizeof(DTYPE)*NUM_DATA/1024.0/1024.0/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" GB/s\n";
-    std::cout << "-- Operations per second : "<<MapFuncNaive::OPS_PER_ITEM*NUM_DATA/1024.0/1024.0/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" Gops\n";
+    std::cout << "-- Operations per second : "<<OPS_PER_ITEM*NUM_DATA/1024.0/1024.0/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" Gops\n";
 
     #ifdef __MODE_DEBUG_TIME__
     queue.memcpy(out.data(), device_out, NUM_DATA*sizeof(DTYPE));
@@ -92,7 +102,26 @@ int main(void) {
     gettimeofday(&end, NULL);
     std::cout << "-- Elasped time : "<<ELAPSED_TIME(start, end)/NUM_TESTS<<" s\n";
     std::cout << "-- Effective bandwidth : "<<sizeof(DTYPE)*NUM_DATA/1024.0/1024.0/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" GB/s\n";
-    std::cout << "-- Operations per second : "<<MapFuncNaive::OPS_PER_ITEM*NUM_DATA/1024.0/1024.0/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" Gops\n";
+    std::cout << "-- Operations per second : "<<OPS_PER_ITEM*NUM_DATA/1024.0/1024.0/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" Gops\n";
+
+    #ifdef __MODE_DEBUG_TIME__
+    queue.memcpy(out.data(), device_out, NUM_DATA*sizeof(DTYPE));
+    queue.wait();
+    check_result(in, out);
+    #endif
+
+    /********************************************************
+     *  Unrolled work intensive implementation
+     ********************************************************/
+    std::cout << "\nUnrolled work intensive parallel map operation\n";
+    gettimeofday(&start, NULL);
+    for (int test=0; test<NUM_TESTS; test++){
+        map_work_intensive_unrolled(queue, device_in, device_out);
+    }   
+    gettimeofday(&end, NULL);
+    std::cout << "-- Elasped time : "<<ELAPSED_TIME(start, end)/NUM_TESTS<<" s\n";
+    std::cout << "-- Effective bandwidth : "<<sizeof(DTYPE)*NUM_DATA/1024.0/1024.0/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" GB/s\n";
+    std::cout << "-- Operations per second : "<<OPS_PER_ITEM*NUM_DATA/1024.0/1024.0/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" Gops\n";
 
     #ifdef __MODE_DEBUG_TIME__
     queue.memcpy(out.data(), device_out, NUM_DATA*sizeof(DTYPE));

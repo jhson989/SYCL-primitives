@@ -14,7 +14,6 @@ class MapFuncNaive {
             device_out[x] = map(device_in[x]);
         }
         
-        static const int OPS_PER_ITEM = 1;
 
     private:
         DTYPE* device_in;
