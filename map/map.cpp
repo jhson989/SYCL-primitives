@@ -12,6 +12,7 @@ timeval start, end;
 /*** Data configuration ***/
 #define DTYPE float
 constexpr size_t NUM_DATA = 1<<29;
+#define WORK_PER_ITEM 32
 
 /*** Debugging info ***/
 #define __MODE_DEBUG_TIME__
@@ -25,6 +26,7 @@ inline DTYPE map(const DTYPE in) {
 /*** Map inplementation ***/
 #include "includes/map_naive.hpp"
 #include "includes/map_work_intensive.hpp"
+#include "includes/map_work_intensive_unrolled.hpp"
 
 /********************************************************
  *  Main Function
@@ -85,7 +87,7 @@ int main(void) {
     std::cout << "\nWork intensive parallel map operation\n";
     gettimeofday(&start, NULL);
     for (int test=0; test<NUM_TESTS; test++){
-        map_work_intensive(queue, device_in, device_out, 8);
+        map_work_intensive(queue, device_in, device_out);
     }   
     gettimeofday(&end, NULL);
     std::cout << "-- Elasped time : "<<ELAPSED_TIME(start, end)/NUM_TESTS<<" s\n";

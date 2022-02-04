@@ -8,9 +8,6 @@ class MapFuncNaive {
         MapFuncNaive() : device_in(nullptr), device_out(nullptr) {}
         MapFuncNaive(DTYPE* d_in, DTYPE* d_out) : device_in(d_in), device_out(d_out) {}
 
-        /*** Map operation  ***/
-
-
         /*** SYCL call interface ***/
         void operator() (sycl::nd_item<1> item) const {
             size_t x = item.get_global_id();

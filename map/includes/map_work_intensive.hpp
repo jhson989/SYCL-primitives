@@ -6,10 +6,7 @@ class MapFuncWorkIntensive {
 
     public:
         MapFuncWorkIntensive() : device_in(nullptr), device_out(nullptr) {}
-        MapFuncWorkIntensive(DTYPE* d_in, DTYPE* d_out, int wpi) : device_in(d_in), device_out(d_out), WORK_PER_ITEM(wpi) {}
-
-        /*** Map operation  ***/
-
+        MapFuncWorkIntensive(DTYPE* d_in, DTYPE* d_out) : device_in(d_in), device_out(d_out) {}
 
         /*** SYCL call interface ***/
         void operator() (sycl::nd_item<1> item) const {
@@ -24,15 +21,14 @@ class MapFuncWorkIntensive {
     private:
         DTYPE* device_in;
         DTYPE* device_out;
-        int WORK_PER_ITEM;
 
 };
 
 
-void map_work_intensive(sycl::queue& queue, DTYPE* device_in, DTYPE* device_out, int WORK_PER_ITEM) {
+void map_work_intensive(sycl::queue& queue, DTYPE* device_in, DTYPE* device_out) {
 
     queue.submit([&] (sycl::handler& cgh) {
-        cgh.parallel_for(sycl::nd_range<1>(NUM_DATA/WORK_PER_ITEM, 1024), MapFuncWorkIntensive(device_in, device_out, WORK_PER_ITEM));
+        cgh.parallel_for(sycl::nd_range<1>(NUM_DATA/WORK_PER_ITEM, 1024), MapFuncWorkIntensive(device_in, device_out));
     });
 
     queue.wait();
