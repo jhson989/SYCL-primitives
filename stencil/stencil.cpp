@@ -11,7 +11,7 @@ timeval start, end;
 
 /*** Data configuration ***/
 #define DTYPE long
-constexpr int N=1024;
+constexpr int N=1024*5;
 constexpr int KERNEL_SIZE=3;
 
 /*** Debugging info ***/
@@ -21,6 +21,7 @@ void check_result(const std::vector<DTYPE>&,const std::vector<DTYPE>&,const std:
 
 /*** Parallel algorithm implementations ***/
 #include "includes/stencil_naive.hpp"
+#include "includes/stencil_local_memory.hpp"
 
 
 
@@ -60,12 +61,16 @@ int main(void) {
     DTYPE* device_out = sycl::malloc_device<DTYPE>(N*N, queue);
 
     // For initial warming up
+    stencil_naive<KERNEL_SIZE>(queue, device_in, device_kernel, device_out);
+    stencil_local_memory<KERNEL_SIZE>(queue, device_in, device_kernel, device_out);
     queue.wait();
+
+
 
     /********************************************************
      *  Naive implementation
      ********************************************************/
-    std::cout << "\nNaive parallel map operation\n";
+    std::cout << "\nNaive parallel stencil operation\n";
     gettimeofday(&start, NULL);
     for (int test=0; test<NUM_TESTS; test++){
         stencil_naive<KERNEL_SIZE>(queue, device_in, device_kernel, device_out);
@@ -81,6 +86,26 @@ int main(void) {
     check_result(in, kernel, out);
     #endif
 
+
+
+    /********************************************************
+     *  Local memory implementation
+     ********************************************************/
+    std::cout << "\nParallel stencil - local memory\n";
+    gettimeofday(&start, NULL);
+    for (int test=0; test<NUM_TESTS; test++){
+        stencil_local_memory<KERNEL_SIZE>(queue, device_in, device_kernel, device_out);
+    }   
+    gettimeofday(&end, NULL);
+    std::cout << "-- Elasped time : "<<ELAPSED_TIME(start, end)/NUM_TESTS<<" s\n";
+    std::cout << "-- Effective bandwidth : "<<sizeof(DTYPE)*N*N/1024.0/1024.0/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" GB/s\n";
+    std::cout << "-- Multiplications per second : "<<KERNEL_SIZE*KERNEL_SIZE*N*N/1024.0/1024.0/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" Gops\n";
+
+    #ifdef __MODE_DEBUG_TIME__
+    queue.memcpy(out.data(), device_out, N*N*sizeof(DTYPE));
+    queue.wait();
+    check_result(in, kernel, out);
+    #endif
 
 
 
