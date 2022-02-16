@@ -15,8 +15,8 @@ void stencil_naive(sycl::queue queue, DTYPE* in, DTYPE* kernel, DTYPE* out) {
     queue.submit([&] (sycl::handler& cgh){
         cgh.parallel_for(sycl::nd_range<2>({N,N}, {16, 16}), [=](sycl::nd_item<2> item) {
 
-            int x = item.get_global_id(0);
-            int y = item.get_global_id(1);
+            int x = item.get_global_id(1);
+            int y = item.get_global_id(0);
             
             int ky, kx;
             DTYPE sum=0;

@@ -17,10 +17,10 @@ void stencil_local_memory(sycl::queue queue, DTYPE* in, DTYPE* kernel, DTYPE* ou
         sycl::accessor<DTYPE, 2, sycl::access::mode::read_write, sycl::access::target::local> local_kernel(sycl::range<2>(K_SIZE,K_SIZE), cgh);
         cgh.parallel_for(sycl::nd_range<2>({N,N}, {16, 16}), [=](sycl::nd_item<2> item) {
 
-            int x = item.get_global_id(0);
-            int y = item.get_global_id(1);
-            int local_x = item.get_local_id(0);
-            int local_y = item.get_local_id(1);
+            int x = item.get_global_id(1);
+            int y = item.get_global_id(0);
+            int local_x = item.get_local_id(1);
+            int local_y = item.get_local_id(0);
 
             int ky, kx;
 
