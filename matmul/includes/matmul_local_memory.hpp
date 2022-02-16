@@ -10,7 +10,7 @@ void matmul_local_memory(sycl::queue queue, const T* A, const T* B, T*C, const s
     queue.submit([&] (sycl::handler& cgh) {
 
         
-        sycl::accessor<T, 2, sycl::access::mode::read_write, sycl::access::target::local> local_A(sycl::range<2>(gsize, gsize), cgh);
+        sycl::accessor<T, 2, sycl::access::mode::read_write, sycl::access::target::local> local_A(sycl::range<2>(gsize, gsize+1), cgh);
         sycl::accessor<T, 2, sycl::access::mode::read_write, sycl::access::target::local> local_B(sycl::range<2>(gsize, gsize), cgh);
         cgh.parallel_for(sycl::nd_range<2>({ceil_M, ceil_N}, {gsize, gsize}), [=](sycl::nd_item<2> item) {
 

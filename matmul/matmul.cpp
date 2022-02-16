@@ -11,7 +11,7 @@ timeval start, end;
 
 /*** Data configuration ***/
 #define DTYPE long
-const int M=1024*5+1, N=1024*5+11, K=1024*5+111;
+const int M=1024*3+1, N=1024*2+11, K=1024*4+111;
 
 /*** Debugging info ***/
 #define __MODE_DEBUG_TIME__
