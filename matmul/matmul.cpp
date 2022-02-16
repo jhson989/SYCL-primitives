@@ -11,11 +11,11 @@ timeval start, end;
 
 /*** Data configuration ***/
 #define DTYPE long
-const int M=1024*3+1, N=1024*2+11, K=1024*4+111;
+const int M=1024*15, N=1024*15, K=1024*15;
 
 /*** Debugging info ***/
-#define __MODE_DEBUG_TIME__
-const int NUM_TESTS=20;
+//#define __MODE_DEBUG_TIME__
+const int NUM_TESTS=2;
 void check_result(const std::vector<DTYPE>&,const std::vector<DTYPE>&,const std::vector<DTYPE>&);
 
 /*** Parallel algorithm implementations ***/
@@ -74,7 +74,7 @@ int main(void) {
     }   
     gettimeofday(&end, NULL);
     std::cout << "-- Elasped time : "<<ELAPSED_TIME(start, end)/NUM_TESTS<<" s\n";
-    std::cout << "-- Effective bandwidth : "<<sizeof(DTYPE)*(M*K+K*N+M*N)/1024.0/1024.0/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" GB/s\n";
+    std::cout << "-- Effective bandwidth : "<<sizeof(DTYPE)*M/1024.0*N/1024.0*K/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" GB/s\n";
     std::cout << "-- Multiplications per second : "<<M/1024.0*N/1024.0*K/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" Gops\n";
 
     #ifdef __MODE_DEBUG_TIME__
@@ -94,7 +94,7 @@ int main(void) {
     }   
     gettimeofday(&end, NULL);
     std::cout << "-- Elasped time : "<<ELAPSED_TIME(start, end)/NUM_TESTS<<" s\n";
-    std::cout << "-- Effective bandwidth : "<<sizeof(DTYPE)*(M*K+K*N+M*N)/1024.0/1024.0/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" GB/s\n";
+    std::cout << "-- Effective bandwidth : "<<sizeof(DTYPE)*M/1024.0*N/1024.0*K/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" GB/s\n";
     std::cout << "-- Multiplications per second : "<<M/1024.0*N/1024.0*K/1024.0/(ELAPSED_TIME(start, end)/NUM_TESTS)<<" Gops\n";
 
     #ifdef __MODE_DEBUG_TIME__
