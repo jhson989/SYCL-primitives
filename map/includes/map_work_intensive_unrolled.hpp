@@ -11,15 +11,18 @@ class MapFuncWorkIntensiveUnrolled {
         void operator() (sycl::nd_item<1> item) const {
             size_t x = item.get_global_id();
             size_t size = item.get_global_range()[0];
+            size_t now = size;
+            
 
-            device_out[x+0*size] = map(device_in[x+0*size]);
-            device_out[x+1*size] = map(device_in[x+1*size]);
-            device_out[x+2*size] = map(device_in[x+2*size]);
-            device_out[x+3*size] = map(device_in[x+3*size]);
-            device_out[x+4*size] = map(device_in[x+4*size]);
-            device_out[x+5*size] = map(device_in[x+5*size]);
-            device_out[x+6*size] = map(device_in[x+6*size]);
-            device_out[x+7*size] = map(device_in[x+7*size]);
+            device_out[x] = map(device_in[x]);
+            device_out[x+now] = map(device_in[x+now]); now += size;
+            device_out[x+now] = map(device_in[x+now]); now += size;
+            device_out[x+now] = map(device_in[x+now]); now += size;
+
+            device_out[x+now] = map(device_in[x+now]); now += size;
+            device_out[x+now] = map(device_in[x+now]); now += size;
+            device_out[x+now] = map(device_in[x+now]); now += size;
+            device_out[x+now] = map(device_in[x+now]);
         }
 
     private:

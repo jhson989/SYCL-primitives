@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(map)
 
-set(PATH_SYCL_BUILD /data/share/oneapi/llvm/build)
+set(PATH_SYCL_BUILD /home/jhson/oneapi/llvm/build)
 set(CMAKE_CXX_COMPILER ${PATH_SYCL_BUILD}/bin/clang++)
 set(PATH_SYCL_INC ${PATH_SYCL_BUILD}/include/sycl)
 set(PATH_SYCL_LIB ${PATH_SYCL_BUILD}/lib)

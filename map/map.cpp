@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <cstring>
 #include <CL/sycl.hpp>
 namespace sycl=cl::sycl;
 
@@ -10,7 +11,7 @@ namespace sycl=cl::sycl;
 timeval start, end;
 
 /*** Data configuration ***/
-#define DTYPE float
+#define DTYPE int
 constexpr size_t NUM_DATA = 1<<29;
 #define WORK_PER_ITEM 8
 
@@ -23,7 +24,7 @@ void check_result(const std::vector<DTYPE>&,const std::vector<DTYPE>&);
 
 /*** Map function ***/
 inline DTYPE map(const DTYPE in) {
-    return in-1;
+    return in*in-in/8+in*in*4-in*3;
 }
 const int OPS_PER_ITEM = 1;
 
@@ -57,7 +58,7 @@ int main(void) {
      ********************************************************/
     // Input data
     std::vector<DTYPE> in(NUM_DATA);
-    std::generate(in.begin(), in.end(), std::rand);
+    std::generate(in.begin(), in.end(), [](){return std::rand()%100-50;});
     DTYPE* device_in = sycl::malloc_device<DTYPE>(NUM_DATA, queue);
     queue.memcpy(device_in, in.data(), NUM_DATA*sizeof(DTYPE));
     queue.wait();
@@ -89,6 +90,8 @@ int main(void) {
     queue.memcpy(out.data(), device_out, NUM_DATA*sizeof(DTYPE));
     queue.wait();
     check_result(in, out);
+    std::memset(out.data(), 0, sizeof(DTYPE)*out.size());
+    queue.memset(device_out, 0, NUM_DATA*sizeof(DTYPE));
     #endif
 
     /********************************************************
@@ -108,6 +111,8 @@ int main(void) {
     queue.memcpy(out.data(), device_out, NUM_DATA*sizeof(DTYPE));
     queue.wait();
     check_result(in, out);
+    std::memset(out.data(), 0, sizeof(DTYPE)*out.size());
+    queue.memset(device_out, 0, NUM_DATA*sizeof(DTYPE));
     #endif
 
     /********************************************************
@@ -127,6 +132,8 @@ int main(void) {
     queue.memcpy(out.data(), device_out, NUM_DATA*sizeof(DTYPE));
     queue.wait();
     check_result(in, out);
+    std::memset(out.data(), 0, sizeof(DTYPE)*out.size());
+    queue.memset(device_out, 0, NUM_DATA*sizeof(DTYPE));
     #endif
 
 
